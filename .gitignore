@@ -1,6 +1,7 @@
 .vercel
 .env
 .env.local
+.env.*.local
 .next
 node_modules
 __pycache__/
@@ -13,3 +14,19 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+# Temporary/untitled files
+Untitled
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
