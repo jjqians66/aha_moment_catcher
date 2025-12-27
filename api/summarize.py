@@ -102,7 +102,7 @@ async def generate_summary(
                 }
             ],
             "temperature": 0.7,
-            "max_tokens": 500
+            "max_tokens": 20000  # Increased from 500 to allow longer research summaries
         }
 
         print(f"Calling SUPER_MIND API at {API_BASE_URL}/chat/completions")
@@ -124,7 +124,15 @@ async def generate_summary(
 
         data = response.json()
         print("✓ Summary API call successful")
+
+        # Check if response was truncated
+        finish_reason = data['choices'][0].get('finish_reason', 'unknown')
+        print(f"Finish reason: {finish_reason}")
+        if finish_reason == 'length':
+            print("⚠️ WARNING: Response was truncated due to max_tokens limit!")
+
         summary = data['choices'][0]['message']['content']
+        print(f"Summary length: {len(summary)} characters")
 
         return {"summary": summary}
 

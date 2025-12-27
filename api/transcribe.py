@@ -63,7 +63,21 @@ async def transcribe_audio(
         # Read audio file content
         print("Reading audio file...")
         audio_bytes = await file.read()
-        print(f"Audio file size: {len(audio_bytes)} bytes ({len(audio_bytes) / (1024*1024):.2f} MB)")
+        print(f"Audio file size: {len(audio_bytes)} bytes ({len(audio_bytes) / 1024:.2f} KB, {len(audio_bytes) / (1024*1024):.2f} MB)")
+
+        # Debug: Show first bytes to verify file format
+        import binascii
+        first_32 = audio_bytes[:32]
+        print(f"First 32 bytes (hex): {binascii.hexlify(first_32).decode()}")
+
+        # Check if it's actually a valid webm file
+        webm_magic = b'\x1a\x45\xdf\xa3'
+        if audio_bytes[:4] == webm_magic:
+            print("✓ File has valid WebM/EBML header")
+        else:
+            print(f"✗ File does NOT have valid WebM header!")
+            print(f"  Expected: {binascii.hexlify(webm_magic).decode()}")
+            print(f"  Got: {binascii.hexlify(audio_bytes[:4]).decode()}")
 
         # Validate file size (OpenAI limit is 25MB)
         max_size = 25 * 1024 * 1024  # 25MB in bytes

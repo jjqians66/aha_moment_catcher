@@ -366,6 +366,7 @@
         let currentTranscription = null; // Store transcription for GPT button
         let currentSummary = null; // Store summary text
         let captureTimestamp = null; // Store capture timestamp
+        let webmHeader = null; // Store the WebM header from chunk 0 (CRITICAL for valid file)
 
         // Get Clerk auth token from parent window (if embedded in Next.js)
         function getClerkToken() {
@@ -430,13 +431,39 @@
                             data: event.data,
                             timestamp: Date.now()
                         };
-                        
+
+                        // Debug: Log chunk info and check first bytes
+                        const chunkIndex = circularBuffer.length;
+                        console.log(`[Chunk ${chunkIndex}] Size: ${event.data.size} bytes, Type: ${event.data.type}`);
+
+                        // Read and check first bytes of this chunk
+                        const reader = new FileReader();
+                        reader.onload = function() {
+                            const arr = new Uint8Array(reader.result.slice(0, 16));
+                            const hex = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                            console.log(`[Chunk ${chunkIndex}] First 16 bytes: ${hex}`);
+
+                            // Check if this chunk has WebM header (only first chunk should)
+                            if (arr[0] === 0x1a && arr[1] === 0x45 && arr[2] === 0xdf && arr[3] === 0xa3) {
+                                console.log(`[Chunk ${chunkIndex}] ✓ Has WebM EBML header - STORING AS HEADER`);
+                                // Store chunk 0 as the header - this is CRITICAL
+                                // The header contains EBML, Segment, Tracks info needed for valid WebM
+                                webmHeader = event.data;
+                            }
+                        };
+                        reader.readAsArrayBuffer(event.data);
+
                         circularBuffer.push(chunk);
-                        
+
                         // Remove chunks older than BUFFER_DURATION
+                        // BUT never remove chunk 0 if it's the only one with the header
                         const cutoffTime = Date.now() - (BUFFER_DURATION * 1000);
+                        const beforeLength = circularBuffer.length;
                         circularBuffer = circularBuffer.filter(c => c.timestamp > cutoffTime);
-                        
+                        if (circularBuffer.length < beforeLength) {
+                            console.log(`[Buffer] Removed ${beforeLength - circularBuffer.length} old chunks (header preserved separately)`);
+                        }
+
                         updateBufferStatus();
                     }
                 }
@@ -496,6 +523,7 @@
                 // Start recording
                 try {
                     circularBuffer = []; // Clear buffer
+                    webmHeader = null; // Clear stored header - will be captured from first chunk
                     bufferStartTime = Date.now();
                     currentTranscription = null; // Clear previous transcription
                     mediaRecorder.start(1000); // Capture 1-second chunks
@@ -535,13 +563,62 @@
 
                     updateStatus('Processing your Aha! moment...', 'processing');
 
-                    // Combine all chunks from circular buffer
-                    const audioBlob = new Blob(
-                        circularBuffer.map(chunk => chunk.data),
-                        { type: 'audio/webm' }
-                    );
+                    // Debug: Log buffer details
+                    console.log('=== AUDIO BUFFER DEBUG ===');
+                    console.log('Number of chunks in buffer:', circularBuffer.length);
+                    console.log('WebM header stored:', webmHeader ? `${webmHeader.size} bytes` : 'NO');
+                    circularBuffer.forEach((chunk, i) => {
+                        console.log(`Chunk ${i}: size=${chunk.data.size} bytes, type=${chunk.data.type}, timestamp=${chunk.timestamp}`);
+                    });
 
-                    console.log('Audio blob size:', audioBlob.size, 'bytes');
+                    // Check if first chunk in buffer has the WebM header
+                    let needsHeaderPrepend = false;
+                    if (circularBuffer.length > 0) {
+                        const firstChunkData = await circularBuffer[0].data.arrayBuffer();
+                        const firstBytes = new Uint8Array(firstChunkData.slice(0, 4));
+                        needsHeaderPrepend = !(firstBytes[0] === 0x1a && firstBytes[1] === 0x45 &&
+                                                firstBytes[2] === 0xdf && firstBytes[3] === 0xa3);
+                        console.log('First chunk has WebM header:', !needsHeaderPrepend);
+                        console.log('Need to prepend stored header:', needsHeaderPrepend);
+                    }
+
+                    // Build the blob parts - prepend header if needed
+                    let blobParts = [];
+                    if (needsHeaderPrepend && webmHeader) {
+                        console.log('✓ Prepending stored WebM header to fix file format');
+                        blobParts.push(webmHeader);
+                    } else if (needsHeaderPrepend && !webmHeader) {
+                        console.error('✗ ERROR: Need header but no header was stored!');
+                    }
+                    blobParts = blobParts.concat(circularBuffer.map(chunk => chunk.data));
+
+                    // Combine all chunks
+                    const audioBlob = new Blob(blobParts, { type: 'audio/webm' });
+
+                    console.log('Combined audio blob size:', audioBlob.size, 'bytes');
+                    console.log('Combined audio blob type:', audioBlob.type);
+                    console.log('Total parts combined:', blobParts.length);
+
+                    // Debug: Read and log first bytes of the blob
+                    const debugReader = new FileReader();
+                    debugReader.onload = function() {
+                        const arrayBuffer = debugReader.result;
+                        const uint8Array = new Uint8Array(arrayBuffer.slice(0, 32));
+                        const hexString = Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0')).join('');
+                        console.log('First 32 bytes of blob (hex):', hexString);
+
+                        // Check for WebM magic bytes (1A 45 DF A3)
+                        if (uint8Array[0] === 0x1a && uint8Array[1] === 0x45 && uint8Array[2] === 0xdf && uint8Array[3] === 0xa3) {
+                            console.log('✓ Valid WebM header detected in blob');
+                        } else {
+                            console.log('✗ NOT a valid WebM file! First 4 bytes:',
+                                uint8Array[0].toString(16), uint8Array[1].toString(16),
+                                uint8Array[2].toString(16), uint8Array[3].toString(16));
+                        }
+                    };
+                    debugReader.readAsArrayBuffer(audioBlob);
+
+                    console.log('=== END AUDIO BUFFER DEBUG ===');
 
                     // Send to backend API for transcription only
                     await transcribeAndDisplay(audioBlob);

@@ -2,6 +2,9 @@
 
 Capture your brilliant moments with a click. Record spontaneous insights, get AI-powered transcriptions and research summaries, and save them directly to Notion.
 
+![Demo Screenshot](assets/landing_img.png)
+![Demo Screenshot2](assets/product_img.png)
+
 ## Features
 
 - **Voice Recording** - Click-to-record with a 30-second circular buffer to capture your thoughts instantly

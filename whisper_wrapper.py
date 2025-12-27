@@ -8,9 +8,45 @@ maintains compatibility with the existing API interface.
 
 import os
 import io
+import binascii
 from typing import Optional, Dict, Any
 from openai import OpenAI
 from openai import APIError, APIConnectionError, APITimeoutError
+
+
+def debug_audio_bytes(audio_bytes: bytes, label: str = "Audio") -> None:
+    """Debug helper to analyze audio bytes."""
+    print(f"\n=== DEBUG {label} ===")
+    print(f"Total size: {len(audio_bytes)} bytes ({len(audio_bytes) / 1024:.2f} KB)")
+
+    # Show first 32 bytes as hex
+    first_bytes = audio_bytes[:32]
+    print(f"First 32 bytes (hex): {binascii.hexlify(first_bytes).decode()}")
+    print(f"First 32 bytes (raw): {first_bytes}")
+
+    # Check for WebM magic bytes (EBML header: 1A 45 DF A3)
+    webm_magic = b'\x1a\x45\xdf\xa3'
+    if audio_bytes[:4] == webm_magic:
+        print("✓ Valid WebM/EBML header detected")
+    else:
+        print(f"✗ NOT a valid WebM file! Expected: {binascii.hexlify(webm_magic).decode()}, Got: {binascii.hexlify(audio_bytes[:4]).decode()}")
+
+    # Check for other common audio formats
+    if audio_bytes[:4] == b'RIFF':
+        print("  Detected: WAV format (RIFF header)")
+    elif audio_bytes[:4] == b'fLaC':
+        print("  Detected: FLAC format")
+    elif audio_bytes[:3] == b'ID3' or audio_bytes[:2] == b'\xff\xfb':
+        print("  Detected: MP3 format")
+    elif audio_bytes[:4] == b'OggS':
+        print("  Detected: OGG format")
+    elif audio_bytes[4:8] == b'ftyp':
+        print("  Detected: MP4/M4A format")
+
+    # Show last 32 bytes
+    last_bytes = audio_bytes[-32:] if len(audio_bytes) >= 32 else audio_bytes
+    print(f"Last 32 bytes (hex): {binascii.hexlify(last_bytes).decode()}")
+    print(f"=== END DEBUG ===\n")
 
 
 class WhisperTranscriber:
@@ -65,6 +101,9 @@ class WhisperTranscriber:
             For "verbose_json": Includes segments, language, duration, etc.
         """
         try:
+            # Debug: Analyze the incoming audio bytes
+            debug_audio_bytes(audio_bytes, "Incoming Audio")
+
             # Ensure filename has proper extension for OpenAI
             original_filename = filename
             if not filename or not any(filename.lower().endswith(ext) for ext in ['.webm', '.mp3', '.wav', '.m4a', '.ogg', '.flac', '.mp4', '.mpeg', '.mpga', '.oga']):
@@ -72,6 +111,16 @@ class WhisperTranscriber:
                 filename = 'recording.webm'
 
             print(f"[WhisperWrapper] Original filename: {original_filename}, Using: {filename}")
+
+            # Verify the content type matches the filename extension
+            webm_magic = b'\x1a\x45\xdf\xa3'
+            is_valid_webm = audio_bytes[:4] == webm_magic
+            print(f"[WhisperWrapper] File claims to be: {filename.split('.')[-1]}, Is valid WebM: {is_valid_webm}")
+
+            # If it's not a valid webm but filename says webm, we have a problem
+            if filename.endswith('.webm') and not is_valid_webm:
+                print(f"[WhisperWrapper] WARNING: Filename says .webm but content is NOT valid WebM!")
+                print(f"[WhisperWrapper] This will cause OpenAI API to reject the file!")
 
             # Create a file-like object from bytes with proper name attribute
             audio_file = io.BytesIO(audio_bytes)
