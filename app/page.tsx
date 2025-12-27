@@ -23,6 +23,12 @@ export default function Home() {
             <SignedIn>
               <div className="flex items-center gap-4">
                 <Link
+                  href="/notes"
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-6 rounded-lg transition-colors w-32 text-center"
+                >
+                  My Notes
+                </Link>
+                <Link
                   href="/product"
                   className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors w-32 text-center"
                 >
@@ -42,7 +48,7 @@ export default function Home() {
             Aha! Moments
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto">
-            Record your spontaneous insights, get AI-powered summaries, and automatically save them to Notion
+            Record your spontaneous insights, get AI-powered summaries, and save them to your personal notes database
           </p>
 
           <SignedOut>
@@ -83,10 +89,10 @@ export default function Home() {
           </div>
 
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-            <div className="text-4xl mb-4">📝</div>
-            <h3 className="text-xl font-bold mb-2 text-gray-800 dark:text-gray-200">Notion Integration</h3>
+            <div className="text-4xl mb-4">💾</div>
+            <h3 className="text-xl font-bold mb-2 text-gray-800 dark:text-gray-200">Save Insights</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Save directly to your Notion workspace with one click.
+              Save your insights to your personal notes database, accessible across devices.
             </p>
           </div>
         </div>

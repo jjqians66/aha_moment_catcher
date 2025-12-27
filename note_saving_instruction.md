@@ -44,12 +44,7 @@ SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6...  # Only for backend
 ```
 
-Add to `.env` for local development:
-```bash
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6...
-```
+Add to `.env` for local development (this is already added)
 
 Update `.env.example`:
 ```bash
@@ -66,6 +61,9 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 In Supabase dashboard, go to **SQL Editor** and run:
 
 ```sql
+-- Needed for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Create insights table
 CREATE TABLE insights (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -89,28 +87,13 @@ CREATE TABLE insights (
 CREATE INDEX insights_user_id_idx ON insights(user_id);
 CREATE INDEX insights_created_at_idx ON insights(created_at DESC);
 
--- Enable Row Level Security (RLS)
-ALTER TABLE insights ENABLE ROW LEVEL SECURITY;
-
--- Policy: Users can only see their own insights
-CREATE POLICY "Users can view own insights"
-    ON insights FOR SELECT
-    USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
-
--- Policy: Users can insert their own insights
-CREATE POLICY "Users can insert own insights"
-    ON insights FOR INSERT
-    WITH CHECK (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
-
--- Policy: Users can update their own insights
-CREATE POLICY "Users can update own insights"
-    ON insights FOR UPDATE
-    USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
-
--- Policy: Users can delete their own insights
-CREATE POLICY "Users can delete own insights"
-    ON insights FOR DELETE
-    USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
+-- NOTE ON SECURITY / RLS:
+-- This plan uses SUPABASE_SERVICE_ROLE_KEY in the backend Python API.
+-- The service role bypasses Row Level Security (RLS), so RLS policies will NOT be your primary isolation mechanism.
+-- Instead, enforce multi-tenancy in your API code by always using `user_id = Clerk sub` on insert,
+-- and always filtering queries by `user_id == Clerk sub` on read/update/delete.
+--
+-- If you later switch to Supabase Auth (or mint Supabase-compatible JWTs), you can enable RLS and use policies.
 
 -- Function to auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -606,8 +589,9 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6...
 
 1. **Service Role Key**: Only use in backend (Python APIs). Never expose to frontend.
 2. **Anon Key**: Can be used in frontend, but RLS policies protect data.
-3. **Row Level Security**: Users can only access their own insights.
-4. **Clerk Integration**: User ID from Clerk JWT is used to identify users.
+3. **Row Level Security**: If you use the service role key, RLS is bypassed—enforce `user_id == Clerk sub` in your API.
+4. **Clerk Integration**: User ID from Clerk JWT (`sub`) is used to identify users.
+5. **Clerk JWT Verification**: Your backend must verify JWT signatures using Clerk JWKS (recommended: set `CLERK_JWKS_URL`).
 
 ---
 

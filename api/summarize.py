@@ -25,6 +25,8 @@ app.add_middleware(
 # Configuration
 API_KEY = os.getenv("SUPER_MIND_API_KEY")
 API_BASE_URL = "https://space.ai-builders.com/backend/v1"
+MAX_TOKENS = int(os.getenv("SUPER_MIND_MAX_TOKENS", "2000"))
+MODEL = os.getenv("SUPER_MIND_MODEL", "deepseek")
 
 # Load system prompt
 SYSTEM_PROMPT_PATH = os.path.join(
@@ -68,8 +70,12 @@ async def generate_summary(
     print(f"User ID: {user.get('sub', 'unknown')}")
     print(f"API_KEY exists: {bool(API_KEY)}")
     print(f"API_KEY length: {len(API_KEY) if API_KEY else 0}")
+    if API_KEY:
+        print(f"API_KEY prefix: {API_KEY[:6]}...")  # safe-ish, do not log full key
     print(f"API_BASE_URL: {API_BASE_URL}")
     print(f"Text to summarize (first 100 chars): {request.text[:100]}...")
+    print(f"MODEL: {MODEL}")
+    print(f"MAX_TOKENS: {MAX_TOKENS}")
 
     if not API_KEY:
         print("✗ ERROR: API_KEY not set")
@@ -90,7 +96,7 @@ async def generate_summary(
         }
 
         payload = {
-            "model": "deepseek",
+            "model": MODEL,
             "messages": [
                 {
                     "role": "system",
@@ -102,7 +108,8 @@ async def generate_summary(
                 }
             ],
             "temperature": 0.7,
-            "max_tokens": 20000  # Increased from 500 to allow longer research summaries
+            # NOTE: very large max_tokens is a common cause of upstream 500s.
+            "max_tokens": MAX_TOKENS
         }
 
         print(f"Calling SUPER_MIND API at {API_BASE_URL}/chat/completions")
@@ -116,9 +123,16 @@ async def generate_summary(
         )
 
         print(f"Response status code: {response.status_code}")
+        # Helpful for provider-side debugging (if they include request IDs)
+        req_id = response.headers.get("x-request-id") or response.headers.get("x-amzn-requestid")
+        if req_id:
+            print(f"Upstream request id: {req_id}")
 
         if not response.ok:
-            print(f"✗ API error response: {response.text[:500]}")
+            print("✗ API error response")
+            print(f"Upstream status: {response.status_code}")
+            print(f"Upstream headers (subset): content-type={response.headers.get('content-type')}")
+            print(f"Upstream body (first 2000 chars): {response.text[:2000]}")
 
         response.raise_for_status()
 
@@ -140,7 +154,8 @@ async def generate_summary(
         print(f"✗ RequestException: {str(e)}")
         if hasattr(e, 'response') and e.response is not None:
             print(f"Response status: {e.response.status_code}")
-            print(f"Response body: {e.response.text[:500]}")
+            print(f"Response headers (subset): content-type={e.response.headers.get('content-type')}")
+            print(f"Response body (first 2000 chars): {e.response.text[:2000]}")
         raise HTTPException(status_code=500, detail=f"Summary API error: {str(e)}")
     except Exception as e:
         print(f"✗ Unexpected error: {str(e)}")

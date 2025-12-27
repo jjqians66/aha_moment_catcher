@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
 from whisper_wrapper import get_transcriber
-from notion_integration import get_notion_integration
 
 load_dotenv()
 
@@ -37,25 +36,8 @@ except Exception as e:
     print("Make sure OPENAI_API_KEY is set in .env file")
     transcriber = None
 
-# Initialize Notion integration
-try:
-    notion = get_notion_integration()
-except Exception as e:
-    print(f"Warning: Could not initialize Notion integration: {e}")
-    print("Make sure NOTION_INTEGRATION_TOKEN is set in .env file")
-    print("Notion save feature will be disabled")
-    notion = None
-
-
 class SummaryRequest(BaseModel):
     text: str
-
-
-class NotionSaveRequest(BaseModel):
-    transcript: str
-    summary: Optional[str] = None
-    timestamp: Optional[str] = None
-    parent_page_id: str
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -170,72 +152,6 @@ async def generate_summary(request: SummaryRequest):
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Summary API error: {str(e)}")
-
-
-@app.post("/api/notion/save")
-async def save_to_notion(request: NotionSaveRequest):
-    """
-    Save aha moment to Notion.
-    Creates a new page in the specified parent page with transcription and summary.
-    """
-    if notion is None:
-        raise HTTPException(
-            status_code=500,
-            detail="Notion integration not initialized. Please check NOTION_INTEGRATION_TOKEN in .env file."
-        )
-    
-    try:
-        result = notion.create_aha_page(
-            parent_page_id=request.parent_page_id,
-            transcript=request.transcript,
-            summary=request.summary,
-            timestamp=request.timestamp
-        )
-        
-        return {
-            "success": True,
-            "message": "Aha moment saved to Notion successfully",
-            "page_url": result.get("page_url"),
-            "page_id": result.get("page_id")
-        }
-    
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except RuntimeError as e:
-        error_msg = str(e)
-        status_code = 500
-        if "rate limit" in error_msg.lower():
-            status_code = 429
-        raise HTTPException(status_code=status_code, detail=error_msg)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save to Notion: {str(e)}")
-
-
-@app.get("/api/notion/status")
-async def notion_status():
-    """
-    Check if Notion integration is available.
-    """
-    if notion is None:
-        return {
-            "available": False,
-            "message": "Notion integration not configured. Please set NOTION_INTEGRATION_TOKEN in .env file."
-        }
-    
-    try:
-        # Test connection
-        is_connected = notion.test_connection()
-        return {
-            "available": True,
-            "connected": is_connected,
-            "message": "Notion integration is ready" if is_connected else "Notion integration configured but connection test failed"
-        }
-    except Exception as e:
-        return {
-            "available": True,
-            "connected": False,
-            "message": f"Notion integration error: {str(e)}"
-        }
 
 
 if __name__ == "__main__":

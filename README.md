@@ -1,6 +1,6 @@
 # Aha! Catcher
 
-Capture your brilliant moments with a click. Record spontaneous insights, get AI-powered transcriptions and research summaries, and save them directly to Notion.
+Capture your brilliant moments with a click. Record spontaneous insights, get AI-powered transcriptions and research summaries, and save them to your personal notes database.
 
 ![Demo Screenshot](assets/landing_img.png)
 ![Demo Screenshot2](assets/product_img.png)
@@ -10,7 +10,7 @@ Capture your brilliant moments with a click. Record spontaneous insights, get AI
 - **Voice Recording** - Click-to-record with a 30-second circular buffer to capture your thoughts instantly
 - **AI Transcription** - Automatic speech-to-text powered by OpenAI Whisper
 - **Research Summary** - AI-generated summaries and research insights via Super Mind API
-- **Notion Integration** - One-click save to your Notion workspace
+- **Save Insights** - Save your insights to your personal notes database, accessible across devices
 - **User Authentication** - Secure access with Clerk authentication
 
 ## Tech Stack
@@ -24,7 +24,7 @@ Capture your brilliant moments with a click. Record spontaneous insights, get AI
 ### Backend
 - [FastAPI](https://fastapi.tiangolo.com/) - Python API framework
 - [OpenAI Whisper](https://openai.com/research/whisper) - Speech-to-text
-- [Notion API](https://developers.notion.com/) - Database integration
+- [Supabase](https://supabase.com/) - Database for storing insights
 
 ### Deployment
 - [Vercel](https://vercel.com/) - Hosting (Next.js + Python serverless functions)
@@ -38,7 +38,7 @@ Capture your brilliant moments with a click. Record spontaneous insights, get AI
 - API keys for:
   - [OpenAI](https://platform.openai.com/) (Whisper transcription)
   - [Super Mind](https://space.ai-builders.com/) (summarization)
-  - [Notion](https://www.notion.so/my-integrations) (integration token)
+  - [Supabase](https://supabase.com/) (database)
   - [Clerk](https://dashboard.clerk.com/) (authentication)
 
 ### Installation
@@ -93,12 +93,12 @@ aha_catcher/
 ├── api/                    # Python serverless functions
 │   ├── transcribe.py       # Whisper transcription endpoint
 │   ├── summarize.py        # AI summary endpoint
-│   ├── notion_save.py      # Save to Notion endpoint
-│   └── notion_status.py    # Notion status check endpoint
+│   ├── insights_save.py    # Save insight endpoint
+│   └── insights_list.py    # List/delete insights endpoint
 ├── public/
 │   └── product.html        # Main app interface
 ├── clerk_auth.py           # Clerk JWT validation for Python
-├── notion_integration.py   # Notion API client
+├── supabase_client.py      # Supabase client helper
 ├── whisper_wrapper.py      # OpenAI Whisper client
 ├── middleware.ts           # Clerk middleware for route protection
 └── vercel.json             # Vercel deployment configuration
@@ -110,8 +110,10 @@ aha_catcher/
 |----------|--------|-------------|
 | `/api/transcribe` | POST | Transcribe audio file using Whisper |
 | `/api/summarize` | POST | Generate AI research summary |
-| `/api/notion/save` | POST | Save content to Notion |
-| `/api/notion/status` | GET | Check Notion integration status |
+| `/api/insights/save` | POST | Save insight to database |
+| `/api/insights` | GET | List user's insights |
+| `/api/insights/{id}` | GET | Get a single insight |
+| `/api/insights/{id}` | DELETE | Delete an insight |
 
 All endpoints require authentication via Clerk JWT token in the `Authorization` header.
 
@@ -124,8 +126,10 @@ All endpoints require authentication via Clerk JWT token in the `Authorization` 
 3. Add environment variables in Vercel dashboard:
    - `OPENAI_API_KEY`
    - `SUPER_MIND_API_KEY`
-   - `NOTION_INTEGRATION_TOKEN`
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
    - `CLERK_SECRET_KEY`
+   - `CLERK_JWKS_URL`
    - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 4. Deploy
 
@@ -135,13 +139,8 @@ All endpoints require authentication via Clerk JWT token in the `Authorization` 
 2. **Record** - Click "Capture Aha!" to start recording your voice
 3. **Stop** - Click again to stop and get automatic transcription
 4. **Summarize** - Click "Send to GPT" to generate a research summary
-5. **Save** - Click "Save to Notion" and enter your Notion page ID to save
-
-### Finding Your Notion Page ID
-
-1. Open the Notion page where you want to save your insights
-2. Copy the URL: `notion.so/YourWorkspace-[PAGE_ID]`
-3. The page ID is the string after the workspace name
+5. **Save** - Click "Save Insight" to save to your personal notes database
+6. **View** - Click "My Notes" to view all your saved insights
 
 ## License
 

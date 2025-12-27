@@ -142,72 +142,40 @@
             display: block;
         }
 
-        #saveToNotionButton {
+        #saveInsightButton {
             width: 100%;
             padding: 20px;
             font-size: 20px;
             font-weight: bold;
             color: white;
-            background: linear-gradient(135deg, rgba(37, 99, 235, 0.7) 0%, rgba(79, 70, 229, 0.7) 100%);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.8) 0%, rgba(5, 150, 105, 0.85) 100%);
             border: none;
             border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
             margin-top: 15px;
             display: none;
         }
 
-        #saveToNotionButton:hover:not(:disabled) {
+        #saveInsightButton:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
         }
 
-        #saveToNotionButton:active:not(:disabled) {
+        #saveInsightButton:active:not(:disabled) {
             transform: translateY(0);
         }
 
-        #saveToNotionButton:disabled {
+        #saveInsightButton:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
 
-        #saveToNotionButton.show {
+        #saveInsightButton.show {
             display: block;
         }
 
-        .notion-config {
-            margin-top: 15px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            display: none;
-        }
-
-        .notion-config.show {
-            display: block;
-        }
-
-        .notion-config input {
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .notion-config label {
-            font-size: 14px;
-            color: #555;
-            font-weight: 500;
-        }
-
-        .notion-config .help-text {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
 
         .results {
             margin-top: 30px;
@@ -308,6 +276,9 @@
 </head>
 <body>
     <div class="container">
+        <div style="text-align: right; margin-bottom: 15px;">
+            <a href="/notes" style="display: inline-block; background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(79, 70, 229, 0.1) 100%); color: #667eea; text-decoration: none; font-size: 16px; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: 2px solid rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">📚 View My Notes</a>
+        </div>
         <h1>💡 Aha! Catcher</h1>
         <p class="subtitle">Capture your brilliant moments with a click</p>
 
@@ -323,17 +294,9 @@
             🤖 Send to GPT
         </button>
 
-        <button id="saveToNotionButton">
-            💾 Save to Notion
+        <button id="saveInsightButton">
+            💾 Save Insight
         </button>
-
-        <div class="notion-config" id="notionConfig">
-            <label for="notionPageId">Notion Page ID:</label>
-            <input type="text" id="notionPageId" placeholder="Enter your Notion page ID">
-            <div class="help-text">
-                Get your page ID from the Notion page URL: notion.so/YourWorkspace-[PAGE_ID]
-            </div>
-        </div>
 
         <div class="buffer-indicator">
             <span id="bufferStatus">Click "Capture Aha!" to start recording</span>
@@ -397,9 +360,7 @@
         // Elements
         const captureButton = document.getElementById('captureButton');
         const sendToGPTButton = document.getElementById('sendToGPTButton');
-        const saveToNotionButton = document.getElementById('saveToNotionButton');
-        const notionConfigDiv = document.getElementById('notionConfig');
-        const notionPageIdInput = document.getElementById('notionPageId');
+        const saveInsightButton = document.getElementById('saveInsightButton');
         const statusDiv = document.getElementById('status');
         const resultsDiv = document.getElementById('results');
         const transcriptionEl = document.getElementById('transcription');
@@ -531,8 +492,7 @@
                     
                     // Hide buttons and clear results
                     sendToGPTButton.classList.remove('show');
-                    saveToNotionButton.classList.remove('show');
-                    notionConfigDiv.classList.remove('show');
+                    saveInsightButton.classList.remove('show');
                     summaryEl.innerHTML = '';
                     transcriptionEl.textContent = '';
                     currentSummary = null;
@@ -653,8 +613,8 @@
                 summaryEl.innerHTML = '';
                 sendToGPTButton.classList.add('show');
                 sendToGPTButton.disabled = false;
-                saveToNotionButton.classList.add('show');
-                saveToNotionButton.disabled = false;
+                saveInsightButton.classList.add('show');
+                saveInsightButton.disabled = false;
 
                 updateStatus('✅ Transcription complete! Click "Send to GPT" for research summary.', 'ready');
 
@@ -680,7 +640,7 @@
                 // Generate summary/research
                 const summary = await generateSummary(currentTranscription);
                 
-                // Store summary text (for Notion saving)
+                // Store summary text
                 currentSummary = summary;
                 
                 // Render markdown as HTML
@@ -772,36 +732,26 @@
             return data.summary;
         }
 
-        // Save to Notion
-        async function saveToNotion() {
+        // Save Insight (Supabase-backed notes) via backend API
+        async function saveInsight() {
             if (!currentTranscription) {
                 updateStatus('No transcription available. Please record audio first.', 'error');
                 return;
             }
 
-            // Check if page ID is configured
-            const pageId = notionPageIdInput.value.trim();
-            if (!pageId) {
-                // Show config panel
-                notionConfigDiv.classList.add('show');
-                updateStatus('Please enter your Notion page ID to save.', 'error');
-                return;
-            }
-
             try {
-                saveToNotionButton.disabled = true;
-                updateStatus('Saving to Notion...', 'processing');
+                saveInsightButton.disabled = true;
+                updateStatus('Saving insight...', 'processing');
 
-                // Extract text from summary if it's HTML
+                // Extract plain text from summary if it's rendered HTML
                 let summaryText = currentSummary;
                 if (!summaryText && summaryEl.innerHTML) {
-                    // Extract text from HTML (basic extraction)
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = summaryEl.innerHTML;
                     summaryText = tempDiv.textContent || tempDiv.innerText || '';
                 }
 
-                const response = await authenticatedFetch('/api/notion/save', {
+                const response = await authenticatedFetch('/api/insights/save', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -809,8 +759,7 @@
                     body: JSON.stringify({
                         transcript: currentTranscription,
                         summary: summaryText || null,
-                        timestamp: captureTimestamp || new Date().toISOString(),
-                        parent_page_id: pageId
+                        tags: []
                     })
                 });
 
@@ -819,63 +768,21 @@
                     throw new Error(errorData.detail || `Failed to save: ${response.status}`);
                 }
 
-                const data = await response.json();
-                
-                if (data.page_url) {
-                    updateStatus('✅ Saved to Notion! Click to view.', 'ready');
-                    // Make status clickable
-                    statusDiv.style.cursor = 'pointer';
-                    statusDiv.onclick = () => window.open(data.page_url, '_blank');
-                    setTimeout(() => {
-                        statusDiv.style.cursor = 'default';
-                        statusDiv.onclick = null;
-                    }, 5000);
-                } else {
-                    updateStatus('✅ Saved to Notion successfully!', 'ready');
-                }
+                await response.json();
+                updateStatus('✅ Insight saved! View it in "My Notes" above.', 'ready');
 
             } catch (error) {
-                console.error('Error saving to Notion:', error);
+                console.error('Error saving insight:', error);
                 updateStatus(`Error: ${error.message}`, 'error');
             } finally {
-                saveToNotionButton.disabled = false;
-            }
-        }
-
-        // Check Notion status on load
-        async function checkNotionStatus() {
-            try {
-                const response = await authenticatedFetch('/api/notion/status');
-                const data = await response.json();
-                
-                if (!data.available) {
-                    console.warn('Notion integration not available:', data.message);
-                    // Hide save button if Notion is not configured
-                    if (saveToNotionButton) {
-                        saveToNotionButton.style.display = 'none';
-                    }
-                }
-            } catch (error) {
-                console.error('Error checking Notion status:', error);
+                saveInsightButton.disabled = false;
             }
         }
 
         // Event listeners
         captureButton.addEventListener('click', toggleRecording);
         sendToGPTButton.addEventListener('click', sendToGPT);
-        saveToNotionButton.addEventListener('click', saveToNotion);
-        
-        // Allow Enter key in page ID input
-        notionPageIdInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                saveToNotion();
-            }
-        });
-
-        // Check Notion status on page load
-        window.addEventListener('load', () => {
-            checkNotionStatus();
-        });
+        saveInsightButton.addEventListener('click', saveInsight);
 
         // Initialize on page load
         window.addEventListener('load', () => {

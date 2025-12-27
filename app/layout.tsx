@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Aha Catcher - Capture Your Best Ideas',
-  description: 'Capture, transcribe, and save your aha moments to Notion',
+  description: 'Capture, transcribe, and save your aha moments to your personal notes database',
 };
 
 export default function RootLayout({

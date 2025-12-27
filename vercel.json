@@ -20,12 +20,16 @@
       "dest": "/api/summarize.py"
     },
     {
-      "src": "/api/notion/save",
-      "dest": "/api/notion_save.py"
+      "src": "/api/insights/save",
+      "dest": "/api/insights_save.py"
     },
     {
-      "src": "/api/notion/status",
-      "dest": "/api/notion_status.py"
+      "src": "/api/insights",
+      "dest": "/api/insights_list.py"
+    },
+    {
+      "src": "/api/insights/(.*)",
+      "dest": "/api/insights_list.py"
     }
   ]
 }

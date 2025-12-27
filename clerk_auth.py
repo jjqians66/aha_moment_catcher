@@ -8,8 +8,23 @@ import os
 import jwt
 from fastapi import HTTPException, Header
 from typing import Optional
+from jwt import PyJWKClient
 
 CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
+CLERK_JWKS_URL = os.getenv("CLERK_JWKS_URL")
+CLERK_ISSUER = os.getenv("CLERK_ISSUER")
+CLERK_AUDIENCE = os.getenv("CLERK_AUDIENCE")
+
+_jwk_client: Optional[PyJWKClient] = None
+
+
+def _get_jwk_client() -> PyJWKClient:
+    global _jwk_client
+    if _jwk_client is None:
+        if not CLERK_JWKS_URL:
+            raise ValueError("CLERK_JWKS_URL must be set to verify Clerk JWT signatures")
+        _jwk_client = PyJWKClient(CLERK_JWKS_URL)
+    return _jwk_client
 
 
 def verify_clerk_token(authorization: Optional[str] = Header(None)) -> dict:
@@ -39,12 +54,31 @@ def verify_clerk_token(authorization: Optional[str] = Header(None)) -> dict:
     token = authorization.replace("Bearer ", "")
 
     try:
-        # Decode without full verification for now
-        # In production, you should verify with Clerk's JWKS
-        decoded = jwt.decode(
-            token,
-            options={"verify_signature": False}
-        )
+        if CLERK_JWKS_URL:
+            jwk_client = _get_jwk_client()
+            signing_key = jwk_client.get_signing_key_from_jwt(token).key
+
+            # Only verify issuer/audience if configured (keeps local setup simple).
+            options = {
+                "verify_signature": True,
+                "verify_exp": True,
+                "verify_aud": bool(CLERK_AUDIENCE),
+                "verify_iss": bool(CLERK_ISSUER),
+            }
+
+            decoded = jwt.decode(
+                token,
+                signing_key,
+                algorithms=["RS256"],
+                audience=CLERK_AUDIENCE,
+                issuer=CLERK_ISSUER,
+                options=options,
+            )
+            decoded["_signature_verified"] = True
+        else:
+            # WARNING: This is insecure. Use only for local development.
+            decoded = jwt.decode(token, options={"verify_signature": False})
+            decoded["_signature_verified"] = False
 
         # Basic validation - check if token has required fields
         if not decoded.get("sub"):
