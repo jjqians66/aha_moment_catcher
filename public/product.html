@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aha! Catcher - Web MVP</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 36px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status.recording {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.processing {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.ready {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        #captureButton {
+            width: 100%;
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+        }
+
+        #captureButton.recording {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        #captureButton:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
+        }
+
+        #captureButton:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        #captureButton:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #sendToGPTButton {
+            width: 100%;
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.7) 0%, rgba(79, 70, 229, 0.7) 100%);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+            margin-top: 15px;
+            display: none;
+        }
+
+        #sendToGPTButton:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
+        }
+
+        #sendToGPTButton:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        #sendToGPTButton:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #sendToGPTButton.show {
+            display: block;
+        }
+
+        #saveToNotionButton {
+            width: 100%;
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.7) 0%, rgba(79, 70, 229, 0.7) 100%);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+            margin-top: 15px;
+            display: none;
+        }
+
+        #saveToNotionButton:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
+        }
+
+        #saveToNotionButton:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        #saveToNotionButton:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #saveToNotionButton.show {
+            display: block;
+        }
+
+        .notion-config {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .notion-config.show {
+            display: block;
+        }
+
+        .notion-config input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .notion-config label {
+            font-size: 14px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .notion-config .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results.visible {
+            display: block;
+        }
+
+        .result-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .result-section p {
+            color: #555;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #summary {
+            color: #555;
+            line-height: 1.8;
+        }
+
+        #summary h2, #summary h3 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        #summary h2 {
+            font-size: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+
+        #summary h3 {
+            font-size: 18px;
+        }
+
+        #summary ul, #summary ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        #summary li {
+            margin-bottom: 8px;
+        }
+
+        #summary strong {
+            color: #333;
+            font-weight: 600;
+        }
+
+        #summary code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .buffer-indicator {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💡 Aha! Catcher</h1>
+        <p class="subtitle">Capture your brilliant moments with a click</p>
+
+        <div id="status" class="status ready">
+            Ready to capture your Aha! moment
+        </div>
+
+        <button id="captureButton">
+            🎤 Capture Aha!
+        </button>
+
+        <button id="sendToGPTButton">
+            🤖 Send to GPT
+        </button>
+
+        <button id="saveToNotionButton">
+            💾 Save to Notion
+        </button>
+
+        <div class="notion-config" id="notionConfig">
+            <label for="notionPageId">Notion Page ID:</label>
+            <input type="text" id="notionPageId" placeholder="Enter your Notion page ID">
+            <div class="help-text">
+                Get your page ID from the Notion page URL: notion.so/YourWorkspace-[PAGE_ID]
+            </div>
+        </div>
+
+        <div class="buffer-indicator">
+            <span id="bufferStatus">Click "Capture Aha!" to start recording</span>
+        </div>
+
+        <div id="results" class="results">
+            <div class="result-section">
+                <h3>📝 Transcription</h3>
+                <p id="transcription"></p>
+            </div>
+            <div class="result-section">
+                <h3>🔍 Research Summary</h3>
+                <div id="summary"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const BUFFER_DURATION = 30; // seconds
+
+        // State
+        let audioContext;
+        let mediaStream;
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let circularBuffer = [];
+        let bufferStartTime = Date.now();
+        let currentTranscription = null; // Store transcription for GPT button
+        let currentSummary = null; // Store summary text
+        let captureTimestamp = null; // Store capture timestamp
+
+        // Get Clerk auth token from parent window (if embedded in Next.js)
+        function getClerkToken() {
+            try {
+                return sessionStorage.getItem('clerk_token') || '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        // Helper function to make authenticated API calls
+        async function authenticatedFetch(url, options = {}) {
+            const clerkToken = getClerkToken();
+            const headers = {
+                ...options.headers,
+            };
+
+            if (clerkToken) {
+                headers['Authorization'] = `Bearer ${clerkToken}`;
+            }
+
+            return fetch(url, {
+                ...options,
+                headers
+            });
+        }
+
+        // Elements
+        const captureButton = document.getElementById('captureButton');
+        const sendToGPTButton = document.getElementById('sendToGPTButton');
+        const saveToNotionButton = document.getElementById('saveToNotionButton');
+        const notionConfigDiv = document.getElementById('notionConfig');
+        const notionPageIdInput = document.getElementById('notionPageId');
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+        const transcriptionEl = document.getElementById('transcription');
+        const summaryEl = document.getElementById('summary');
+        const bufferStatusEl = document.getElementById('bufferStatus');
+
+        // Initialize audio (request permission, but don't start recording)
+        async function initAudio() {
+            try {
+                // Request microphone access
+                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000
+                    } 
+                });
+
+                // Create MediaRecorder with appropriate codec
+                const options = { mimeType: 'audio/webm;codecs=opus' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'audio/webm';
+                }
+                
+                // Function to handle data available events
+                function handleDataAvailable(event) {
+                    if (event.data.size > 0) {
+                        const chunk = {
+                            data: event.data,
+                            timestamp: Date.now()
+                        };
+                        
+                        circularBuffer.push(chunk);
+                        
+                        // Remove chunks older than BUFFER_DURATION
+                        const cutoffTime = Date.now() - (BUFFER_DURATION * 1000);
+                        circularBuffer = circularBuffer.filter(c => c.timestamp > cutoffTime);
+                        
+                        updateBufferStatus();
+                    }
+                }
+
+                // Function to recreate MediaRecorder after stop
+                function recreateMediaRecorder() {
+                    if (mediaStream && mediaStream.active) {
+                        const options = { mimeType: 'audio/webm;codecs=opus' };
+                        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                            options.mimeType = 'audio/webm';
+                        }
+                        mediaRecorder = new MediaRecorder(mediaStream, options);
+                        mediaRecorder.ondataavailable = handleDataAvailable;
+                        mediaRecorder.onstop = recreateMediaRecorder;
+                    }
+                }
+
+                mediaRecorder = new MediaRecorder(mediaStream, options);
+                mediaRecorder.ondataavailable = handleDataAvailable;
+                mediaRecorder.onstop = recreateMediaRecorder;
+
+                // Don't start recording automatically - wait for button click
+                updateStatus('Ready to capture your Aha! moment', 'ready');
+                bufferStatusEl.textContent = 'Click "Capture Aha!" to start recording';
+
+            } catch (error) {
+                console.error('Error initializing audio:', error);
+                updateStatus('Error: Could not access microphone. Please grant permission.', 'error');
+                captureButton.disabled = true;
+            }
+        }
+
+        // Update buffer status display
+        function updateBufferStatus() {
+            const totalDuration = circularBuffer.reduce((sum, chunk) => {
+                return sum + 1; // Each chunk is ~1 second
+            }, 0);
+            
+            const bufferSeconds = Math.min(totalDuration, BUFFER_DURATION);
+            bufferStatusEl.textContent = `Audio buffer: ${bufferSeconds}s / ${BUFFER_DURATION}s`;
+        }
+
+        // Update status message
+        function updateStatus(message, type = 'ready') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Toggle recording or capture Aha! moment
+        async function toggleRecording() {
+            if (!mediaRecorder) {
+                updateStatus('Error: Microphone not initialized', 'error');
+                return;
+            }
+
+            if (!isRecording) {
+                // Start recording
+                try {
+                    circularBuffer = []; // Clear buffer
+                    bufferStartTime = Date.now();
+                    currentTranscription = null; // Clear previous transcription
+                    mediaRecorder.start(1000); // Capture 1-second chunks
+                    isRecording = true;
+                    
+                    // Hide buttons and clear results
+                    sendToGPTButton.classList.remove('show');
+                    saveToNotionButton.classList.remove('show');
+                    notionConfigDiv.classList.remove('show');
+                    summaryEl.innerHTML = '';
+                    transcriptionEl.textContent = '';
+                    currentSummary = null;
+                    captureTimestamp = null;
+                    
+                    captureButton.textContent = '⏹ Stop Recording';
+                    captureButton.classList.add('recording');
+                    updateStatus('Recording audio buffer (last 30 seconds)...', 'recording');
+                    updateBufferStatus();
+                } catch (error) {
+                    console.error('Error starting recording:', error);
+                    updateStatus(`Error: ${error.message}`, 'error');
+                }
+            } else {
+                // Stop recording and process
+                try {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    captureButton.disabled = true;
+                    captureButton.textContent = '🎤 Capture Aha!';
+                    captureButton.classList.remove('recording');
+                    
+                    if (circularBuffer.length === 0) {
+                        updateStatus('No audio recorded. Please try again.', 'error');
+                        captureButton.disabled = false;
+                        return;
+                    }
+
+                    updateStatus('Processing your Aha! moment...', 'processing');
+
+                    // Combine all chunks from circular buffer
+                    const audioBlob = new Blob(
+                        circularBuffer.map(chunk => chunk.data),
+                        { type: 'audio/webm' }
+                    );
+
+                    console.log('Audio blob size:', audioBlob.size, 'bytes');
+
+                    // Send to backend API for transcription only
+                    await transcribeAndDisplay(audioBlob);
+
+                } catch (error) {
+                    console.error('Error capturing Aha! moment:', error);
+                    updateStatus(`Error: ${error.message}`, 'error');
+                    captureButton.disabled = false;
+                }
+            }
+        }
+
+        // Transcribe audio and display results
+        async function transcribeAndDisplay(audioBlob) {
+            try {
+                // Transcribe the audio
+                const transcription = await transcribeAudio(audioBlob);
+
+                if (!transcription) {
+                    throw new Error('Transcription failed');
+                }
+
+                // Store transcription and timestamp
+                currentTranscription = transcription;
+                captureTimestamp = new Date().toISOString();
+
+                // Display transcription
+                transcriptionEl.textContent = transcription;
+                resultsDiv.classList.add('visible');
+                
+                // Clear summary and show buttons
+                summaryEl.innerHTML = '';
+                sendToGPTButton.classList.add('show');
+                sendToGPTButton.disabled = false;
+                saveToNotionButton.classList.add('show');
+                saveToNotionButton.disabled = false;
+
+                updateStatus('✅ Transcription complete! Click "Send to GPT" for research summary.', 'ready');
+
+            } catch (error) {
+                throw error;
+            } finally {
+                captureButton.disabled = false;
+            }
+        }
+
+        // Send transcription to GPT for research summary
+        async function sendToGPT() {
+            if (!currentTranscription) {
+                updateStatus('No transcription available. Please record audio first.', 'error');
+                return;
+            }
+
+            try {
+                sendToGPTButton.disabled = true;
+                updateStatus('Generating research summary...', 'processing');
+                summaryEl.innerHTML = '<p style="color: #666; font-style: italic;">Loading...</p>';
+
+                // Generate summary/research
+                const summary = await generateSummary(currentTranscription);
+                
+                // Store summary text (for Notion saving)
+                currentSummary = summary;
+                
+                // Render markdown as HTML
+                if (typeof marked !== 'undefined') {
+                    summaryEl.innerHTML = marked.parse(summary);
+                } else {
+                    // Fallback: basic markdown conversion
+                    summaryEl.innerHTML = convertMarkdownToHTML(summary);
+                }
+
+                updateStatus('✅ Research summary generated!', 'ready');
+
+            } catch (error) {
+                console.error('Error generating summary:', error);
+                summaryEl.innerHTML = `<p style="color: #721c24;">Error: ${error.message}</p>`;
+                updateStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                sendToGPTButton.disabled = false;
+            }
+        }
+
+        // Basic markdown to HTML converter (fallback if marked.js fails)
+        function convertMarkdownToHTML(markdown) {
+            let html = markdown;
+            
+            // Headers
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+            
+            // Bold
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Lists
+            html = html.replace(/^\- (.*$)/gim, '<li>$1</li>');
+            html = html.replace(/^(\d+)\. (.*$)/gim, '<li>$2</li>');
+            
+            // Wrap consecutive list items in ul
+            html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+            
+            // Paragraphs
+            html = html.split('\n\n').map(p => {
+                if (!p.trim().startsWith('<')) {
+                    return '<p>' + p.trim() + '</p>';
+                }
+                return p;
+            }).join('\n');
+            
+            return html;
+        }
+
+        // Transcribe audio using backend API
+        async function transcribeAudio(audioBlob) {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording.webm');
+
+            const response = await authenticatedFetch('/api/transcribe', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Transcription failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.text;
+        }
+
+        // Generate summary using backend API
+        async function generateSummary(transcription) {
+            const response = await authenticatedFetch('/api/summarize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: transcription
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Summary generation failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.summary;
+        }
+
+        // Save to Notion
+        async function saveToNotion() {
+            if (!currentTranscription) {
+                updateStatus('No transcription available. Please record audio first.', 'error');
+                return;
+            }
+
+            // Check if page ID is configured
+            const pageId = notionPageIdInput.value.trim();
+            if (!pageId) {
+                // Show config panel
+                notionConfigDiv.classList.add('show');
+                updateStatus('Please enter your Notion page ID to save.', 'error');
+                return;
+            }
+
+            try {
+                saveToNotionButton.disabled = true;
+                updateStatus('Saving to Notion...', 'processing');
+
+                // Extract text from summary if it's HTML
+                let summaryText = currentSummary;
+                if (!summaryText && summaryEl.innerHTML) {
+                    // Extract text from HTML (basic extraction)
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = summaryEl.innerHTML;
+                    summaryText = tempDiv.textContent || tempDiv.innerText || '';
+                }
+
+                const response = await authenticatedFetch('/api/notion/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        transcript: currentTranscription,
+                        summary: summaryText || null,
+                        timestamp: captureTimestamp || new Date().toISOString(),
+                        parent_page_id: pageId
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `Failed to save: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.page_url) {
+                    updateStatus('✅ Saved to Notion! Click to view.', 'ready');
+                    // Make status clickable
+                    statusDiv.style.cursor = 'pointer';
+                    statusDiv.onclick = () => window.open(data.page_url, '_blank');
+                    setTimeout(() => {
+                        statusDiv.style.cursor = 'default';
+                        statusDiv.onclick = null;
+                    }, 5000);
+                } else {
+                    updateStatus('✅ Saved to Notion successfully!', 'ready');
+                }
+
+            } catch (error) {
+                console.error('Error saving to Notion:', error);
+                updateStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                saveToNotionButton.disabled = false;
+            }
+        }
+
+        // Check Notion status on load
+        async function checkNotionStatus() {
+            try {
+                const response = await authenticatedFetch('/api/notion/status');
+                const data = await response.json();
+                
+                if (!data.available) {
+                    console.warn('Notion integration not available:', data.message);
+                    // Hide save button if Notion is not configured
+                    if (saveToNotionButton) {
+                        saveToNotionButton.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking Notion status:', error);
+            }
+        }
+
+        // Event listeners
+        captureButton.addEventListener('click', toggleRecording);
+        sendToGPTButton.addEventListener('click', sendToGPT);
+        saveToNotionButton.addEventListener('click', saveToNotion);
+        
+        // Allow Enter key in page ID input
+        notionPageIdInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                saveToNotion();
+            }
+        });
+
+        // Check Notion status on page load
+        window.addEventListener('load', () => {
+            checkNotionStatus();
+        });
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            initAudio();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    },
+    {
+      "src": "api/**/*.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/transcribe",
+      "dest": "/api/transcribe.py"
+    },
+    {
+      "src": "/api/summarize",
+      "dest": "/api/summarize.py"
+    },
+    {
+      "src": "/api/notion/save",
+      "dest": "/api/notion_save.py"
+    },
+    {
+      "src": "/api/notion/status",
+      "dest": "/api/notion_status.py"
+    }
+  ]
+}
